@@ -1,37 +1,29 @@
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import cors from '@fastify/cors';
 import secureSession from '@fastify/secure-session';
-import fastifyCors from '@fastify/cors';
+import fastifyCookie from '@fastify/cookie';
 import { ConfigService } from '@nestjs/config';
-import { Buffer } from 'buffer';
-import { ValidationPipe } from '@nestjs/common';
+
 import * as dayjs from 'dayjs';
 import * as utcPlugin from 'dayjs/plugin/utc';
 import { PolytetrisModule } from './polytetris.module';
+import { ValidationPipe } from '@nestjs/common';
 
 dayjs.extend(utcPlugin);
-
-const CORS_ACCESS_CONTROL_MAX_AGE = 172800; // 48 hours
-const CORS_ALLOWED_HEADERS = [
-  'content-type',
-  'content-disposition',
-  'accept',
-  'origin',
-  'referer',
-  'etag',
-  'if-none-match',
-];
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(PolytetrisModule, new FastifyAdapter());
 
-
   const configService: ConfigService = app.get(ConfigService);
-
-  const server = app.getHttpServer();
-
-  server.keepAliveTimeout = configService.getOrThrow<number>('KEEPALIVE_TIMEOUT');
-  server.headersTimeout = configService.getOrThrow<number>('HEADERS_TIMEOUT');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+  await app.register(fastifyCookie);
 
   await app.register(secureSession, {
     key: Buffer.concat([Buffer.from(configService.getOrThrow<string>('SESSIONS_SECRET'), 'hex')], 32),
@@ -44,24 +36,11 @@ async function bootstrap() {
     },
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-
-  const env = configService.get<string | undefined>('NODE_ENV') || 'development';
-
-  if (env === 'production') {
-    app.setGlobalPrefix('api');
-
-    const applicationOrigin = configService.getOrThrow<string>('APPLICATION_ORIGIN');
-
-    await app.register(fastifyCors, {
-      origin: applicationOrigin.trim().split(','),
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      allowedHeaders: CORS_ALLOWED_HEADERS,
-      exposedHeaders: CORS_ALLOWED_HEADERS,
-      maxAge: CORS_ACCESS_CONTROL_MAX_AGE,
-      credentials: true,
-    });
-  }
+  app.register(cors, {
+    origin: ['http://localhost:3010', 'http://localhost:5173'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
 
   await app.listen(configService.getOrThrow<string>('PORT'), '0.0.0.0');
 }

@@ -1,18 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TransactionsModule } from '@libs/transactions';
 import { AuthController } from './controllers';
-import { DefaultAuthService } from './services';
-import AuthModuleTokens from './auth.module.tokens';
+import { AuthService, TwitterOAuthService } from './services';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [TransactionsModule, ConfigModule],
+  imports: [ConfigModule],
   controllers: [AuthController],
-  providers: [
-    {
-      provide: AuthModuleTokens.Services.AuthService,
-      useClass: DefaultAuthService,
-    },
-  ],
+  providers: [AuthService, TwitterOAuthService],
 })
 export class AuthModule {}

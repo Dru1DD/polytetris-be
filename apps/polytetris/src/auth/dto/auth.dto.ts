@@ -1,5 +1,4 @@
 import { IsString, IsOptional, IsNotEmpty, IsIn } from 'class-validator';
-import { IsIdentifier } from '@libs/validation/class-validators';
 
 export class SignInDto {
   @IsNotEmpty()
@@ -15,7 +14,6 @@ export class SignInDto {
   userId: string;
 
   @IsOptional()
-  @IsIdentifier()
   referralId?: string;
 
   @IsOptional()
